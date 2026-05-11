@@ -396,8 +396,10 @@ class Transformer(nn.Module):
       - Downloads trained weights from Google Drive (via gdown) and loads them
     """
 
-    # ── Google Drive file ID for trained checkpoint ──────────────────
-    GDRIVE_FILE_ID = "YOUR_GDRIVE_FILE_ID_HERE"   # <-- replace before submission
+    # ── Google Drive file IDs ─────────────────────────────────────────
+    # Replace these with your actual Drive file IDs after training!
+    GDRIVE_CHECKPOINT_ID = "YOUR_CHECKPOINT_FILE_ID_HERE"  # best_checkpoint.pt
+    GDRIVE_VOCAB_ID      = "YOUR_VOCAB_FILE_ID_HERE"       # vocab.pt
 
     def __init__(
         self,
@@ -531,7 +533,7 @@ class Transformer(nn.Module):
         if not os.path.exists(checkpoint_path):
             try:
                 gdown.download(
-                    id=self.GDRIVE_FILE_ID,
+                    id=self.GDRIVE_CHECKPOINT_ID,
                     output=checkpoint_path,
                     quiet=False,
                 )
