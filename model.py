@@ -417,33 +417,48 @@ class Transformer(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.d_model        = d_model
-        self.pad_idx        = pad_idx
-        self.sos_idx        = sos_idx
-        self.eos_idx        = eos_idx
+        # ── Fixed special-token indices ────────────────────────────────
+        self.d_model = d_model
+        self.pad_idx = pad_idx
+        self.sos_idx = sos_idx
+        self.eos_idx = eos_idx
+        self._N        = N
+        self._num_heads = num_heads
+        self._d_ff     = d_ff
+        self._dropout  = dropout
+
+        # ── STEP 1: load spaCy tokenizers ─────────────────────────────
+        # Must happen before vocab download so tokenizer is ready if we
+        # need to rebuild vocab from scratch.
+        self._load_spacy_tokenizers()
+
+        # ── STEP 2: download vocab & read TRUE vocab sizes ────────────
+        # This MUST happen before any nn.Embedding is created so we use
+        # the correct sizes (matching the checkpoint).
+        self._download_vocab(checkpoint_path)   # sets src_stoi/itos, tgt_stoi/itos
+
+        # Derive true sizes from the loaded vocab
+        src_vocab_size = len(self.src_stoi)
+        tgt_vocab_size = len(self.tgt_stoi)
         self.src_vocab_size = src_vocab_size
         self.tgt_vocab_size = tgt_vocab_size
 
-        # ── Build sub-modules ──────────────────────────────────────────
+        # ── STEP 3: build layers with CORRECT sizes ───────────────────
         enc_layer = EncoderLayer(d_model, num_heads, d_ff, dropout)
         dec_layer = DecoderLayer(d_model, num_heads, d_ff, dropout)
 
-        self.encoder     = Encoder(enc_layer, N)
-        self.decoder     = Decoder(dec_layer, N)
+        self.encoder   = Encoder(enc_layer, N)
+        self.decoder   = Decoder(dec_layer, N)
+        self.src_embed = nn.Embedding(src_vocab_size, d_model, padding_idx=pad_idx)
+        self.tgt_embed = nn.Embedding(tgt_vocab_size, d_model, padding_idx=pad_idx)
+        self.src_pe    = PositionalEncoding(d_model, dropout)
+        self.tgt_pe    = PositionalEncoding(d_model, dropout)
+        self.proj      = nn.Linear(d_model, tgt_vocab_size)
 
-        self.src_embed   = nn.Embedding(src_vocab_size, d_model, padding_idx=pad_idx)
-        self.tgt_embed   = nn.Embedding(tgt_vocab_size, d_model, padding_idx=pad_idx)
-        self.src_pe      = PositionalEncoding(d_model, dropout)
-        self.tgt_pe      = PositionalEncoding(d_model, dropout)
-        self.proj        = nn.Linear(d_model, tgt_vocab_size)
-
-        # ── Initialise parameters ─────────────────────────────────────
+        # ── STEP 4: init weights ──────────────────────────────────────
         self._init_weights()
 
-        # ── Load tokenizers & vocabularies (needed for infer()) ───────
-        self._load_tokenizers_and_vocab()
-
-        # ── Download & load checkpoint ────────────────────────────────
+        # ── STEP 5: load checkpoint weights ──────────────────────────
         self._load_checkpoint(checkpoint_path)
 
     # ── Weight initialisation ─────────────────────────────────────────
@@ -494,28 +509,26 @@ class Transformer(nn.Module):
             importlib.reload(spacy)
             return spacy.load(model_name)
 
-    def _load_tokenizers_and_vocab(self):
-        """
-        Load spacy tokenizers and build/restore vocabularies from Multi30k.
-        This runs inside __init__ so that infer() works without extra setup.
-        """
+    def _load_spacy_tokenizers(self):
+        """Load spaCy models and set up tokenizer lambdas."""
         self.spacy_de = self._load_spacy_model("de_core_news_sm")
         self.spacy_en = self._load_spacy_model("en_core_web_sm")
-
-        # Tokenizer functions
         self._tokenize_de = lambda text: [tok.text.lower() for tok in self.spacy_de.tokenizer(text)]
         self._tokenize_en = lambda text: [tok.text.lower() for tok in self.spacy_en.tokenizer(text)]
 
-        # Load vocab: try local file, then Google Drive, then build from dataset
+    def _download_vocab(self, checkpoint_path: str):
+        """
+        Download vocab.pt from Google Drive (if not cached) and load it.
+        MUST be called before building nn.Embedding layers so vocab sizes
+        are correct and match the checkpoint.
+        """
         vocab_path = "vocab.pt"
+
+        # Download if not already on disk
         if not os.path.exists(vocab_path):
-            # Try downloading from Google Drive
             try:
-                gdown.download(
-                    id=self.GDRIVE_VOCAB_ID,
-                    output=vocab_path,
-                    quiet=False,
-                )
+                print("[Transformer] Downloading vocab.pt from Google Drive...")
+                gdown.download(id=self.GDRIVE_VOCAB_ID, output=vocab_path, quiet=False)
             except Exception as e:
                 print(f"[Transformer] Could not download vocab: {e}")
 
@@ -525,20 +538,15 @@ class Transformer(nn.Module):
             self.src_itos = vocab_data["src_itos"]
             self.tgt_stoi = vocab_data["tgt_stoi"]
             self.tgt_itos = vocab_data["tgt_itos"]
+            print(f"[Transformer] Vocab loaded — src: {len(self.src_stoi)}, tgt: {len(self.tgt_stoi)}")
         else:
-            print("[Transformer] Building vocab from Multi30k (slow, ~1 min)...")
+            # Last resort: build from dataset (slow but correct)
+            print("[Transformer] Building vocab from Multi30k (this takes ~1 min)...")
             self._build_vocab_from_dataset()
             torch.save({
                 "src_stoi": self.src_stoi, "src_itos": self.src_itos,
                 "tgt_stoi": self.tgt_stoi, "tgt_itos": self.tgt_itos,
             }, vocab_path)
-
-        # Update embedding sizes if vocab was built dynamically
-        actual_src = len(self.src_stoi)
-        actual_tgt = len(self.tgt_stoi)
-        if actual_src != self.src_vocab_size or actual_tgt != self.tgt_vocab_size:
-            self.src_vocab_size = actual_src
-            self.tgt_vocab_size = actual_tgt
 
     def _build_vocab_from_dataset(self):
         """Build vocab dictionaries from the Multi30k training set."""
