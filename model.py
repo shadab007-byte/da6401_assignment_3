@@ -398,8 +398,8 @@ class Transformer(nn.Module):
 
     # ── Google Drive file IDs ─────────────────────────────────────────
     # Replace these with your actual Drive file IDs after training!
-    GDRIVE_CHECKPOINT_ID = "1Mnm220UtL1euQbE1X1Nb5L3CujM3w0CX"  # best_checkpoint.pt
-    GDRIVE_VOCAB_ID      = "1BCwr2tbr8KHky2FPDpGjNslKssq3Jdzj"       # vocab.pt
+    GDRIVE_CHECKPOINT_ID = "YOUR_CHECKPOINT_FILE_ID_HERE"  # best_checkpoint.pt
+    GDRIVE_VOCAB_ID      = "YOUR_VOCAB_FILE_ID_HERE"       # vocab.pt
 
     def __init__(
         self,
@@ -453,33 +453,72 @@ class Transformer(nn.Module):
                 nn.init.xavier_uniform_(p)
 
     # ── Tokenizer / vocabulary setup ──────────────────────────────────
+
+    @staticmethod
+    def _install_spacy_model(model_name: str) -> None:
+        """Install a spaCy model via subprocess — works in autograder envs."""
+        import subprocess, sys
+        WHEEL_URLS = {
+            "de_core_news_sm": (
+                "https://github.com/explosion/spacy-models/releases/download/"
+                "de_core_news_sm-3.7.0/de_core_news_sm-3.7.0-py3-none-any.whl"
+            ),
+            "en_core_web_sm": (
+                "https://github.com/explosion/spacy-models/releases/download/"
+                "en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl"
+            ),
+        }
+        # Try spacy download first
+        r = subprocess.run(
+            [sys.executable, "-m", "spacy", "download", model_name],
+            capture_output=True, text=True
+        )
+        if r.returncode != 0:
+            # Fallback: install wheel directly via pip
+            url = WHEEL_URLS.get(model_name, "")
+            if url:
+                subprocess.run(
+                    [sys.executable, "-m", "pip", "install", url, "--quiet"],
+                    capture_output=True
+                )
+
+    def _load_spacy_model(self, model_name: str):
+        """Load a spaCy model, installing it first if not found."""
+        import spacy
+        try:
+            return spacy.load(model_name)
+        except OSError:
+            print(f"[Transformer] Installing spaCy model: {model_name}")
+            self._install_spacy_model(model_name)
+            import importlib
+            importlib.reload(spacy)
+            return spacy.load(model_name)
+
     def _load_tokenizers_and_vocab(self):
         """
         Load spacy tokenizers and build/restore vocabularies from Multi30k.
         This runs inside __init__ so that infer() works without extra setup.
         """
-        import spacy
-        from datasets import load_dataset
-
-        # Load spacy models
-        try:
-            self.spacy_de = spacy.load("de_core_news_sm")
-        except OSError:
-            os.system("python -m spacy download de_core_news_sm")
-            self.spacy_de = spacy.load("de_core_news_sm")
-
-        try:
-            self.spacy_en = spacy.load("en_core_web_sm")
-        except OSError:
-            os.system("python -m spacy download en_core_web_sm")
-            self.spacy_en = spacy.load("en_core_web_sm")
+        self.spacy_de = self._load_spacy_model("de_core_news_sm")
+        self.spacy_en = self._load_spacy_model("en_core_web_sm")
 
         # Tokenizer functions
         self._tokenize_de = lambda text: [tok.text.lower() for tok in self.spacy_de.tokenizer(text)]
         self._tokenize_en = lambda text: [tok.text.lower() for tok in self.spacy_en.tokenizer(text)]
 
-        # Try to load vocab from a saved file first; otherwise rebuild from dataset
+        # Load vocab: try local file, then Google Drive, then build from dataset
         vocab_path = "vocab.pt"
+        if not os.path.exists(vocab_path):
+            # Try downloading from Google Drive
+            try:
+                gdown.download(
+                    id=self.GDRIVE_VOCAB_ID,
+                    output=vocab_path,
+                    quiet=False,
+                )
+            except Exception as e:
+                print(f"[Transformer] Could not download vocab: {e}")
+
         if os.path.exists(vocab_path):
             vocab_data = torch.load(vocab_path, map_location="cpu")
             self.src_stoi = vocab_data["src_stoi"]
@@ -487,6 +526,7 @@ class Transformer(nn.Module):
             self.tgt_stoi = vocab_data["tgt_stoi"]
             self.tgt_itos = vocab_data["tgt_itos"]
         else:
+            print("[Transformer] Building vocab from Multi30k (slow, ~1 min)...")
             self._build_vocab_from_dataset()
             torch.save({
                 "src_stoi": self.src_stoi, "src_itos": self.src_itos,
