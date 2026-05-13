@@ -254,7 +254,7 @@ def evaluate_bleu(
     Returns:
         bleu_score : Corpus-level BLEU (float, range 0–100).
     """
-    from torchtext.data.metrics import bleu_score as torchtext_bleu
+    import sacrebleu
 
     model.eval()
     pad_idx = model.pad_idx
@@ -270,8 +270,8 @@ def evaluate_bleu(
         else:
             return str(idx)
 
-    candidate_corpus = []   # list of token-lists (predictions)
-    references_corpus = []  # list of list of token-lists (refs)
+    hypotheses = []   # list of detokenized prediction strings
+    references  = []  # list of detokenized reference strings
 
     with torch.no_grad():
         for src, tgt in test_dataloader:
@@ -310,11 +310,11 @@ def evaluate_bleu(
                     continue
                 ref_tokens.append(idx_to_tok(idx))
 
-            candidate_corpus.append(pred_tokens)
-            references_corpus.append([ref_tokens])   # torchtext expects list of refs
+            hypotheses.append(" ".join(pred_tokens))
+            references.append(" ".join(ref_tokens))
 
-    # torchtext bleu_score returns 0-1; multiply by 100
-    bleu = torchtext_bleu(candidate_corpus, references_corpus) * 100.0
+    # sacrebleu corpus_bleu returns score in 0-100 range
+    bleu = sacrebleu.corpus_bleu(hypotheses, [references]).score
     print(f"BLEU score: {bleu:.2f}")
     return bleu
 
