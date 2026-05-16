@@ -40,7 +40,7 @@ class NoamScheduler(LRScheduler):
         # because it calls get_lr() internally
         super().__init__(optimizer, last_epoch=last_epoch)
 
-    # ------------------------------------------------------------------
+    
     def _get_lr_scale(self) -> float:
         """
         Compute the Noam scaling factor for the current step.
@@ -55,7 +55,6 @@ class NoamScheduler(LRScheduler):
         )
         return scale
 
-    # ------------------------------------------------------------------
     def get_lr(self) -> list:
         """
         Compute learning rates for every param group.
