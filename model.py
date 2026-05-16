@@ -214,9 +214,8 @@ class Decoder(nn.Module):
 
 class Transformer(nn.Module):
 
-    # Replace these with your actual Drive file IDs after training!
-    GDRIVE_CHECKPOINT_ID = "1EnhkkDFb8jXMWrb32Bop1sTbbidQgnej"  # best_checkpoint.pt
-    GDRIVE_VOCAB_ID      = "1BCwr2tbr8KHky2FPDpGjNslKssq3Jdzj"       # vocab.pt
+    GDRIVE_CHECKPOINT_ID = "1EnhkkDFb8jXMWrb32Bop1sTbbidQgnej"  
+    GDRIVE_VOCAB_ID      = "1BCwr2tbr8KHky2FPDpGjNslKssq3Jdzj"       
 
     def __init__(
         self,
@@ -231,22 +230,22 @@ class Transformer(nn.Module):
     ) -> None:
         super().__init__()
 
-        # Fixed special token indices
+        
         self.pad_idx = 1
         self.sos_idx = 2
         self.eos_idx = 3
 
-        # STEP 1: Load spaCy tokenizers
+        
         self._load_spacy_tokenizers()
 
-        # STEP 2a: Download vocab.pt → get true vocab sizes
+        
         self._download_vocab()
         src_vocab_size = len(self.src_stoi)
         tgt_vocab_size = len(self.tgt_stoi)
         self.src_vocab_size = src_vocab_size
         self.tgt_vocab_size = tgt_vocab_size
 
-        # STEP 2b: Download checkpoint → read true architecture from model_config
+        
         ckpt_path = checkpoint_path if checkpoint_path else "checkpoint.pt"
         if not os.path.exists(ckpt_path):
             try:
@@ -270,7 +269,7 @@ class Transformer(nn.Module):
 
         self.d_model = d_model
 
-        # STEP 3: Build architecture with correct sizes
+      
         enc_layer = EncoderLayer(d_model, num_heads, d_ff, dropout)
         dec_layer = DecoderLayer(d_model, num_heads, d_ff, dropout)
         self.encoder   = Encoder(enc_layer, N)
@@ -281,12 +280,12 @@ class Transformer(nn.Module):
         self.tgt_pe    = PositionalEncoding(d_model, dropout)
         self.proj      = nn.Linear(d_model, tgt_vocab_size)
 
-        # STEP 4: Initialise weights
+        
         for p in self.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-        # STEP 5: Load trained weights
+        
         if os.path.exists(ckpt_path):
             try:
                 ckpt = torch.load(ckpt_path, map_location="cpu")
@@ -294,8 +293,6 @@ class Transformer(nn.Module):
                 print("[Transformer] Weights loaded successfully.")
             except Exception as e:
                 print(f"[Transformer] Could not load weights: {e}")
-
-    # ── spaCy helpers ─────────────────────────────────────────────────
 
     @staticmethod
     def _install_spacy_model(name):
@@ -334,7 +331,6 @@ class Transformer(nn.Module):
         self._tok_de = lambda t: [x.text.lower() for x in self.spacy_de.tokenizer(t)]
         self._tok_en = lambda t: [x.text.lower() for x in self.spacy_en.tokenizer(t)]
 
-    # ── Vocab helper ──────────────────────────────────────────────────
 
     def _download_vocab(self):
         vocab_path = "vocab.pt"
@@ -376,7 +372,6 @@ class Transformer(nn.Module):
             "tgt_stoi": self.tgt_stoi, "tgt_itos": self.tgt_itos,
         }, "vocab.pt")
 
-    # ── Autograder hooks ──────────────────────────────────────────────
 
     def encode(self, src: torch.Tensor, src_mask: torch.Tensor) -> torch.Tensor:
         x = self.src_pe(self.src_embed(src) * math.sqrt(self.d_model))
@@ -391,7 +386,7 @@ class Transformer(nn.Module):
                 src_mask: torch.Tensor, tgt_mask: torch.Tensor) -> torch.Tensor:
         return self.decode(self.encode(src, src_mask), src_mask, tgt, tgt_mask)
 
-    # ── infer() ───────────────────────────────────────────────────────
+    # infer() 
 
     def infer(self, src_sentence: str) -> str:
         self.eval()
