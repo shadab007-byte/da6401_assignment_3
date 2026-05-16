@@ -214,7 +214,7 @@ class Decoder(nn.Module):
 
 class Transformer(nn.Module):
 
-    GDRIVE_CHECKPOINT_ID = "1EnhkkDFb8jXMWrb32Bop1sTbbidQgnej"  
+    GDRIVE_CHECKPOINT_ID = "1hiBEx9oAnzS0TEzPc-jYBbbU3QceStS-"  
     GDRIVE_VOCAB_ID      = "1BCwr2tbr8KHky2FPDpGjNslKssq3Jdzj"       
 
     def __init__(
