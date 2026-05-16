@@ -18,7 +18,7 @@ from typing import List, Tuple, Dict
 # ══════════════════════════════════════════════════════════════════════
 
 class Vocabulary:
-    """Simple word-level vocabulary with special tokens."""
+    
 
     PAD_TOKEN = "<pad>"
     UNK_TOKEN = "<unk>"
@@ -90,12 +90,12 @@ class Multi30kDataset(Dataset):
     ) -> None:
         self.split = split
 
-        # ── Load dataset from HuggingFace ─────────────────────────────
+        # Load dataset from HuggingFace
         from datasets import load_dataset
         raw = load_dataset("bentrevett/multi30k", trust_remote_code=True)
         self.raw_data = raw[split]
 
-        # ── Load spaCy tokenizers ─────────────────────────────────────
+        # Load spaCy tokenizers
         import spacy
         try:
             self._spacy_de = spacy.load("de_core_news_sm")
@@ -108,17 +108,17 @@ class Multi30kDataset(Dataset):
             os.system("python -m spacy download en_core_web_sm")
             self._spacy_en = spacy.load("en_core_web_sm")
 
-        # ── Build / assign vocabularies ───────────────────────────────
+        # Build / assign vocabularies
         if src_vocab is None or tgt_vocab is None:
             self.src_vocab, self.tgt_vocab = self.build_vocab(min_freq=min_freq)
         else:
             self.src_vocab = src_vocab
             self.tgt_vocab = tgt_vocab
 
-        # ── Tokenize & numericalize all sentences ─────────────────────
+        
         self.src_data, self.tgt_data = self.process_data()
 
-    # ── Tokenizer helpers ─────────────────────────────────────────────
+    # Tokenizer helpers
 
     def tokenize_de(self, text: str) -> List[str]:
         return [tok.text.lower() for tok in self._spacy_de.tokenizer(text)]
@@ -126,7 +126,7 @@ class Multi30kDataset(Dataset):
     def tokenize_en(self, text: str) -> List[str]:
         return [tok.text.lower() for tok in self._spacy_en.tokenizer(text)]
 
-    # ── Vocabulary construction ───────────────────────────────────────
+    # Vocabulary construction
 
     def build_vocab(self, min_freq: int = 1) -> Tuple[Vocabulary, Vocabulary]:
         """
@@ -143,7 +143,7 @@ class Multi30kDataset(Dataset):
         tgt_vocab = Vocabulary(tgt_counter, min_freq=min_freq)
         return src_vocab, tgt_vocab
 
-    # ── Numericalization ──────────────────────────────────────────────
+    # Numericalization
 
     def process_data(self) -> Tuple[List[List[int]], List[List[int]]]:
         """
@@ -169,7 +169,7 @@ class Multi30kDataset(Dataset):
 
         return src_data, tgt_data
 
-    # ── PyTorch Dataset interface ──────────────────────────────────────
+    # PyTorch Dataset interface
 
     def __len__(self) -> int:
         return len(self.src_data)
