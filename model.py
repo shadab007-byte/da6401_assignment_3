@@ -403,12 +403,12 @@ class Transformer(nn.Module):
 
     def __init__(
         self,
-        src_vocab_size: int = 8500,
-        tgt_vocab_size: int = 6500,
-        d_model:   int   = 256,
-        N:         int   = 3,
+        src_vocab_size: int = 18669,
+        tgt_vocab_size: int = 9797,
+        d_model:   int   = 512,
+        N:         int   = 4,
         num_heads: int   = 8,
-        d_ff:      int   = 512,
+        d_ff:      int   = 1024,
         dropout:   float = 0.1,
         checkpoint_path: str = "checkpoint.pt",
         pad_idx: int = 1,
@@ -432,16 +432,46 @@ class Transformer(nn.Module):
         # need to rebuild vocab from scratch.
         self._load_spacy_tokenizers()
 
-        # ── STEP 2: download vocab & read TRUE vocab sizes ────────────
-        # This MUST happen before any nn.Embedding is created so we use
-        # the correct sizes (matching the checkpoint).
-        self._download_vocab(checkpoint_path)   # sets src_stoi/itos, tgt_stoi/itos
+        # ── STEP 2: download vocab & checkpoint, read TRUE sizes ─────
+        # Both vocab and checkpoint must be downloaded before ANY layer
+        # is built, so we can read d_model/N/d_ff/vocab_size from them
+        # and construct an architecture that exactly matches the weights.
 
-        # Derive true sizes from the loaded vocab
+        # 2a. Download vocab.pt → get true vocab sizes
+        self._download_vocab(checkpoint_path)
         src_vocab_size = len(self.src_stoi)
         tgt_vocab_size = len(self.tgt_stoi)
         self.src_vocab_size = src_vocab_size
         self.tgt_vocab_size = tgt_vocab_size
+
+        # 2b. Download checkpoint.pt → peek at model_config for architecture
+        ckpt_path = checkpoint_path if checkpoint_path else "checkpoint.pt"
+        if not os.path.exists(ckpt_path):
+            try:
+                print("[Transformer] Downloading checkpoint to read model_config...")
+                gdown.download(
+                    id=self.GDRIVE_CHECKPOINT_ID,
+                    output=ckpt_path,
+                    quiet=False,
+                )
+            except Exception as e:
+                print(f"[Transformer] Could not download checkpoint: {e}")
+
+        if os.path.exists(ckpt_path):
+            try:
+                _ckpt = torch.load(ckpt_path, map_location="cpu")
+                _cfg  = _ckpt.get("model_config", {})
+                # Override architecture params from checkpoint (never trust defaults)
+                d_model   = _cfg.get("d_model",   d_model)
+                N         = _cfg.get("N",         N)
+                num_heads = _cfg.get("num_heads", num_heads)
+                d_ff      = _cfg.get("d_ff",      d_ff)
+                print(f"[Transformer] Architecture from checkpoint: "
+                      f"d_model={d_model}, N={N}, num_heads={num_heads}, d_ff={d_ff}")
+            except Exception as e:
+                print(f"[Transformer] Could not read model_config: {e}")
+
+        self.d_model = d_model   # update with true value
 
         # ── STEP 3: build layers with CORRECT sizes ───────────────────
         enc_layer = EncoderLayer(d_model, num_heads, d_ff, dropout)
@@ -575,26 +605,16 @@ class Transformer(nn.Module):
     # ── Checkpoint download & load ────────────────────────────────────
     def _load_checkpoint(self, checkpoint_path: str):
         """
-        Download checkpoint from Google Drive (if not already cached)
-        and load weights into this model.
+        Load weights from checkpoint (already downloaded in STEP 2).
+        strict=True now because architecture was built to match exactly.
         """
-        if not os.path.exists(checkpoint_path):
+        ckpt_path = checkpoint_path if checkpoint_path else "checkpoint.pt"
+        if os.path.exists(ckpt_path):
             try:
-                gdown.download(
-                    id=self.GDRIVE_CHECKPOINT_ID,
-                    output=checkpoint_path,
-                    quiet=False,
-                )
-            except Exception as e:
-                print(f"[Transformer] Could not download checkpoint: {e}")
-                return
-
-        if os.path.exists(checkpoint_path):
-            try:
-                ckpt = torch.load(checkpoint_path, map_location="cpu")
+                ckpt = torch.load(ckpt_path, map_location="cpu")
                 state_dict = ckpt.get("model_state_dict", ckpt)
-                self.load_state_dict(state_dict, strict=False)
-                print(f"[Transformer] Loaded weights from {checkpoint_path}")
+                self.load_state_dict(state_dict, strict=True)
+                print(f"[Transformer] Weights loaded successfully from {ckpt_path}")
             except Exception as e:
                 print(f"[Transformer] Could not load checkpoint: {e}")
 
