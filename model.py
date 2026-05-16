@@ -399,7 +399,7 @@ class Transformer(nn.Module):
     # ── Google Drive file IDs ─────────────────────────────────────────
     # Replace these with your actual Drive file IDs after training!
     GDRIVE_CHECKPOINT_ID = "1EnhkkDFb8jXMWrb32Bop1sTbbidQgnej"  # best_checkpoint.pt
-    GDRIVE_VOCAB_ID      = "1srPoOPUI_UVxmYjbEJVsxipzzwsPrcFm"       # vocab.pt
+    GDRIVE_VOCAB_ID      = "1BCwr2tbr8KHky2FPDpGjNslKssq3Jdzj"       # vocab.pt
 
     def __init__(
         self,
