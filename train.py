@@ -157,7 +157,7 @@ def run_epoch(
                 if scheduler is not None:
                     scheduler.step()
 
-            # Accumulate (unscaled by batch so we can average later)
+            # Accumulate
             non_pad = (targets_flat != pad_idx).sum().item()
             total_loss   += loss.item() * non_pad
             total_tokens += non_pad
