@@ -398,8 +398,8 @@ class Transformer(nn.Module):
 
     # ── Google Drive file IDs ─────────────────────────────────────────
     # Replace these with your actual Drive file IDs after training!
-    GDRIVE_CHECKPOINT_ID = "1EnhkkDFb8jXMWrb32Bop1sTbbidQgnej"  # best_checkpoint.pt
-    GDRIVE_VOCAB_ID      = "1BCwr2tbr8KHky2FPDpGjNslKssq3Jdzj"       # vocab.pt
+    GDRIVE_CHECKPOINT_ID = "YOUR_CHECKPOINT_FILE_ID_HERE"  # best_checkpoint.pt
+    GDRIVE_VOCAB_ID      = "YOUR_VOCAB_FILE_ID_HERE"       # vocab.pt
 
     def __init__(
         self,
@@ -657,6 +657,50 @@ class Transformer(nn.Module):
         memory = self.encode(src, src_mask)
         return self.decode(memory, src_mask, tgt, tgt_mask)
 
+
+    def _beam_decode(
+        self,
+        memory:   torch.Tensor,
+        src_mask: torch.Tensor,
+        max_len:  int,
+        device:   str,
+        beam_size: int = 4,
+        alpha:     float = 0.6,
+    ) -> list:
+        """Beam search with length penalty. Returns best token-id list."""
+        beams = [(0.0, [self.sos_idx])]
+        completed = []
+        for _ in range(max_len):
+            if not beams:
+                break
+            all_cands = []
+            for log_prob, seq in beams:
+                if seq[-1] == self.eos_idx:
+                    lp = ((5 + len(seq)) ** alpha) / (6.0 ** alpha)
+                    completed.append((log_prob / lp, seq))
+                    continue
+                ys = torch.tensor([seq], dtype=torch.long, device=device)
+                tgt_mask = make_tgt_mask(ys, self.pad_idx)
+                logits   = self.decode(memory, src_mask, ys, tgt_mask)
+                lprobs   = F.log_softmax(logits[:, -1, :], dim=-1)
+                topk_lp, topk_ids = lprobs[0].topk(beam_size)
+                for lp, tok in zip(topk_lp.tolist(), topk_ids.tolist()):
+                    all_cands.append((log_prob + lp, seq + [tok]))
+            all_cands.sort(key=lambda x: x[0], reverse=True)
+            beams = []
+            for log_prob, seq in all_cands:
+                if len(beams) >= beam_size:
+                    break
+                if seq[-1] == self.eos_idx:
+                    lp = ((5 + len(seq)) ** alpha) / (6.0 ** alpha)
+                    completed.append((log_prob / lp, seq))
+                else:
+                    beams.append((log_prob, seq))
+        if not completed:
+            completed = beams
+        completed.sort(key=lambda x: x[0], reverse=True)
+        return completed[0][1]
+
     def infer(self, src_sentence: str) -> str:
         """
         Translates a German sentence to English using greedy autoregressive decoding.
@@ -679,22 +723,13 @@ class Transformer(nn.Module):
         src_mask = make_src_mask(src_tensor, self.pad_idx)
 
         with torch.no_grad():
-            memory = self.encode(src_tensor, src_mask)
-
-            # Greedy decode
-            ys = torch.tensor([[self.sos_idx]], dtype=torch.long, device=device)
+            memory  = self.encode(src_tensor, src_mask)
             max_len = src_tensor.size(1) + 50
 
-            for _ in range(max_len):
-                tgt_mask = make_tgt_mask(ys, self.pad_idx)
-                logits = self.decode(memory, src_mask, ys, tgt_mask)
-                next_token = logits[:, -1, :].argmax(dim=-1, keepdim=True)
-                ys = torch.cat([ys, next_token], dim=1)
-                if next_token.item() == self.eos_idx:
-                    break
-
-        # Convert indices back to words (skip <sos> and <eos>)
-        token_ids = ys[0].tolist()
+            # Beam search (beam_size=4, length penalty alpha=0.6)
+            token_ids = self._beam_decode(
+                memory, src_mask, max_len, device, beam_size=4, alpha=0.6
+            )
         words = []
         for idx in token_ids:
             if idx == self.sos_idx:
