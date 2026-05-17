@@ -9,6 +9,7 @@ Implementation of "Attention Is All You Need" (Vaswani et al., 2017) from scratc
 ## 🔗 Links
 
 - **GitHub:** [shadab007-byte/da6401_assignment_3](https://github.com/shadab007-byte/da6401_assignment_3)
+- **W&B Project Report:** : https://api.wandb.ai/links/iitm_assigment/g509q9cz
 - **Base Paper:** [Attention Is All You Need](https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf)
 
 ## 📋 Overview
