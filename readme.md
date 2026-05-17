@@ -4,7 +4,7 @@ Implementation of "Attention Is All You Need" (Vaswani et al., 2017) from scratc
 
 ## 📈 W&B Report
 
-🔗 [View Full Report]([https://wandb.ai/iitm_assigment/da6401-assignment-3/reports/DA6401-ASSIGNMENT-3--VmlldzoxNjQ0NjM2Nw](https://api.wandb.ai/links/iitm_assigment/g509q9cz))
+🔗 [View Full Report]([https://api.wandb.ai/links/iitm_assigment/g509q9cz])
 
 ## 🔗 Links
 
