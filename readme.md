@@ -2,6 +2,16 @@
 
 Implementation of "Attention Is All You Need" (Vaswani et al., 2017) from scratch using PyTorch for German→English Neural Machine Translation on the Multi30k dataset.
 
+## 📈 W&B Report
+
+🔗 [View Full Report]([https://wandb.ai/iitm_assigment/da6401-assignment-3/reports/DA6401-ASSIGNMENT-3--VmlldzoxNjQ0NjM2Nw](https://api.wandb.ai/links/iitm_assigment/g509q9cz))
+
+## 🔗 Links
+
+- **GitHub:** [shadab007-byte/da6401_assignment_3](https://github.com/shadab007-byte/da6401_assignment_3)
+- **W&B Project:** [iitm_assigment/da6401-assignment-3](https://wandb.ai/iitm_assigment/da6401-assignment-3)
+- **Base Paper:** [Attention Is All You Need](https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf)
+
 ## 📋 Overview
 
 This assignment builds a full Transformer encoder-decoder architecture including:
@@ -81,15 +91,6 @@ The model automatically downloads trained weights and vocabulary from Google Dri
 | 2.4 | Sinusoidal vs Learned PE | Sinusoidal: 36.63 BLEU vs Learned: 34.77 BLEU |
 | 2.5 | Label smoothing ε=0.1 vs 0.0 | Smoothing reduces overconfidence, improves generalisation |
 
-## 📈 W&B Report
-
-🔗 [View Full Report](https://wandb.ai/iitm_assigment/da6401-assignment-3/reports/DA6401-ASSIGNMENT-3--VmlldzoxNjQ0NjM2Nw)
-
-## 🔗 Links
-
-- **GitHub:** [shadab007-byte/da6401_assignment_3](https://github.com/shadab007-byte/da6401_assignment_3)
-- **W&B Project:** [iitm_assigment/da6401-assignment-3](https://wandb.ai/iitm_assigment/da6401-assignment-3)
-- **Base Paper:** [Attention Is All You Need](https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf)
 
 ## 👤 Author
 
