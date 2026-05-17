@@ -221,10 +221,10 @@ class Transformer(nn.Module):
         self,
         src_vocab_size: int   = None,
         tgt_vocab_size: int   = None,
-        d_model:        int   = 512,
-        N:              int   = 6,
+        d_model:        int   = 256,
+        N:              int   = 3,
         num_heads:      int   = 8,
-        d_ff:           int   = 2048,
+        d_ff:           int   = 512,
         dropout:        float = 0.1,
         checkpoint_path: str  = None,
     ) -> None:
